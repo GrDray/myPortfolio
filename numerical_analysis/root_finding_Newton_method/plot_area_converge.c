@@ -110,6 +110,84 @@ int  is_converge(double x, double y)
   }
 }
 
+/*--------------------------------------------------------------------------
+ * The 2D Newton's method. And list all grid-points that converge
+ *     x from -3 to 3
+ *     y from -3 to 3
+ */
+void  newton2D_find_49_converge_grid()
+{
+  int i;
+  double  x, y;
+  double  err, xnew, ynew, xold, yold;
+  double  fdx, fdy, gdx, gdy, Delta;
+  double  fold, gold;
+
+  for(x=-3.0; x<4.0; x++){
+    for(y=-3.0; y<4.0; y++){
+      i=0;
+
+      //Set up initial conditions.
+      xold = x;
+      yold = y;
+
+      //Function values & derivatives of the functions
+      fold = f(xold, yold);
+      gold = g(xold, yold);
+      fdx = fx(xold, yold);
+      fdy = fy(xold, yold);
+      gdx = gx(xold, yold);
+      gdy = gy(xold, yold);
+
+      //Determinant of the Jacobian matrix, no negative value.
+      Delta = fdx*gdy - fdy*gdx;
+      //Update the root, Don't miss the minus operator!
+      xnew = xold - (gdy*fold - fdy*gold)/Delta;
+      ynew = yold - (-gdx*fold + fdx*gold)/Delta;
+
+      //Compute the 2-norm of the error vector.
+      err = sqrt(pow(fabs(xnew - xold), 2) + pow(fabs(ynew-yold), 2));
+
+      i = 1;
+      while(err>EPSILON){
+
+        xold = xnew; // Save current value.
+        yold = ynew;
+        //Update the root.
+        fold = f(xold, yold);
+        gold = g(xold, yold);
+        fdx = fx(xold, yold);
+        fdy = fy(xold, yold);
+        gdx = gx(xold, yold);
+        gdy = gy(xold, yold);
+
+        Delta = fdx*gdy - fdy*gdx;
+
+        xnew = xold - (gdy*fold - fdy*gold)/Delta;
+        ynew = yold - (-gdx*fold + fdx*gold)/Delta;
+        //Compute the 2-norm of the error vector.
+        err = sqrt(pow(fabs(xnew - xold), 2) + pow(fabs(ynew-yold), 2));
+        i++;
+      }
+      // make sure x and y is not nan or inf
+      /*---- Setup color to red and bigger size------*/
+      if((isnormal(xnew) && isnormal(ynew))){
+        if(xnew>0 && ynew>0){
+	        glColor3f(1.0, 0.0, 0.0);
+        }else if(xnew>0 && ynew<0){
+          glColor3f(0.0, 1.0, 0.0);
+        }else if(xnew<0 && ynew>0){
+          glColor3f(0.0, 0.0, 1.0);
+        }else{
+          glColor3f(0.7, 0.5, 0.5);
+        }
+        glVertex2f(x, y);
+        glVertex2f(xnew, ynew);
+      }
+    }
+  }
+}
+
 
 /*----------------------------------------------------
  * Draw mesh 
@@ -156,8 +234,8 @@ void draw_axis(float x_left, float x_right, float y_bottom, float y_top){
  */
 void draw_function_f(float offset)
 {
-	/*---- Setup color to green------*/
-	glColor3f(0.0, 1.0, 0.0);
+	/*---- Setup color to dark------*/
+	glColor3f(0.1, 0.1, 0.1);
   /*----- Draw the function f  -----*/
   float x, y;
   for(x=-3.0; x<=3.0; x+=offset){
@@ -174,8 +252,8 @@ void draw_function_f(float offset)
  */
 void draw_function_g(float offset)
 {
-	/*---- Setup color to green------*/
-	glColor3f(0.0, 1.0, 0.0);
+	/*---- Setup color to dark------*/
+	glColor3f(0.1, 0.1, 0.1);
   /*----- Draw the function f  -----*/
   float x, y;
   for(x=-3.0; x<=3.0; x+=offset){
@@ -214,18 +292,10 @@ void display()
     draw_function_g(0.01);
   glEnd();
 
-  /*---- Setup color to red and bigger size------*/
-	glColor3f(1.0, 0.0, 0.0);
   glPointSize(8.0);
 
   glBegin(GL_POINTS); // draw grid points that converge
-    for(float x=-3.0; x<=3.0; x++){
-        for(float y=-3.0; y<=3.0; y++){
-            if(is_converge(x, y)){
-                glVertex2f(x, y);
-            }
-        }
-    }
+    newton2D_find_49_converge_grid();
   glEnd();
   glFlush();
   fprintf(stderr,"display() is called \n");
