@@ -60,7 +60,7 @@ double gy(double x, double y)
 void  draw_path(double *x, double *y)
 {
   /*---- Setup color to red------*/
-  glColor3f(1.0, 0.0, 0.0);
+	glColor3f(1.0, 0.0, 0.0);
 
   int  i=0;
   double  err, xnew, ynew, xold, yold;
@@ -124,7 +124,7 @@ void  draw_path(double *x, double *y)
  */
 void draw_axis(float x_left, float x_right, float y_bottom, float y_top){
   /*---- Setup color to dark------*/
-  glColor3f(0.1, 0.1, 0.1);
+	glColor3f(0.1, 0.1, 0.1);
 
   glBegin(GL_LINES);
     glVertex2f(x_left, 0);
@@ -140,7 +140,7 @@ void draw_axis(float x_left, float x_right, float y_bottom, float y_top){
  */
 void draw_mesh(float x_left, float x_right, float y_bottom, float y_top){
   /*---- Setup color to dark------*/
-  glColor3f(0.1, 0.1, 0.1);
+	glColor3f(0.1, 0.1, 0.1);
 
   glEnable(GL_LINE_STIPPLE);  // enable stipple line
   glLineStipple(2, 0X00FF);  // stipple mode
@@ -164,8 +164,8 @@ void draw_mesh(float x_left, float x_right, float y_bottom, float y_top){
  */
 void draw_function_f(float offset)
 {
-  /*---- Setup color to green------*/
-  glColor3f(0.0, 1.0, 0.0);
+	/*---- Setup color to green------*/
+	glColor3f(0.0, 1.0, 0.0);
   /*----- Draw the function f  -----*/
   float x, y;
   for(x=-3.0; x<=3.0; x+=offset){
@@ -182,8 +182,8 @@ void draw_function_f(float offset)
  */
 void draw_function_g(float offset)
 {
-  /*---- Setup color to green------*/
-  glColor3f(0.0, 1.0, 0.0);
+	/*---- Setup color to green------*/
+	glColor3f(0.0, 1.0, 0.0);
   /*----- Draw the function f  -----*/
   float x, y;
   for(x=-3.0; x<=3.0; x+=offset){
