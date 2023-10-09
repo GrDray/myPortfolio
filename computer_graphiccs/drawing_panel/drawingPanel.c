@@ -6,15 +6,19 @@
 #include <math.h>
 #include <GL/freeglut.h>
 
-#define    TYPE_WINDOW  1
-#define    SIZE_WINDOW  2
-#define    COLOR_WINDOW  3
+/*define menu input */
+#define    POLYGON_START  1
+#define    POLYGON_FINISH  2
+#define    DRAW_PEN  1
+#define    DRAW_LINE  2
+#define    DRAW_CIRCLE  3
+#define    DRAW_RECTANGLE  4
+#define    MENU_STRING  1
 
 typedef    int   menu_t;
-menu_t     properties_m;
+menu_t     polygon_m, draw_m, string_m;
 
-int winHeight=512, winWidth=512;
-
+int winHeight=640, winWidth=960; // the size of main window
 
 /*------------------------------------------------------------
  * Callback function for display, redisplay, expose events
@@ -55,24 +59,49 @@ void keyboard_func(unsigned char key, int x, int y)
   if(key=='Q'||key=='q') exit(0);
 }
 
+/*------------------------------------------------------------
+ * Callback function handling mouse events
+ */
+void mouse_func(int button, int state, int x, int y)
+{
+  if(button!=GLUT_LEFT_BUTTON||state!=GLUT_DOWN)
+    return;
+}
+
+/*-------------------------------------------------------------
+ * motion callback function. The mouse is pressed and moved.
+ */
+void motion_func(int  x, int y)
+{
+  
+}
+
+
 /*---------------------------------------------------------------
- * Callback function for top menu. Do nothing.
+ * Callback function for top menu.
  */
 void top_menu_func(int value)
 {
 }
 
 /*-----------------------------------------------------------------
- * Callback function for properties menu
+ * function for submenu
  */
-void  properties_func(int value)
+void  polygon_func(int value)
 {
+
+}
+
+void  draw_func(int value)
+{
+  /*set types to draw */
+
   switch(value){
-  case TYPE_WINDOW:
+  case 1:
     //myColor[0] = myColor[1] = myColor[2] = 1.0;
     break;
 
-  case SIZE_WINDOW:
+  case 2:
     //myColor[0] = 1.0;
     //myColor[1] = myColor[2] = 0.0;
     break;
@@ -86,6 +115,31 @@ void  properties_func(int value)
     break;
   }
 }
+
+void  string_func(int value)
+{
+  /*set properties to input string */
+
+  switch(value){
+  case 1:
+    //myColor[0] = myColor[1] = myColor[2] = 1.0;
+    break;
+
+  case 2:
+    //myColor[0] = 1.0;
+    //myColor[1] = myColor[2] = 0.0;
+    break;
+
+  case COLOR_WINDOW:
+    //myColor[0] = myColor[2] = 0.0;
+    //myColor[1] = 1.0;
+    break;
+
+  default:
+    break;
+  }
+}
+
 
 
 /*---------------------------------------------------------------
@@ -106,21 +160,34 @@ int main(int argc, char **argv)
   glutDisplayFunc(display_func);
   glutReshapeFunc(reshape_func);
   glutKeyboardFunc(keyboard_func);
+  glutMouseFunc(mouse_func);
+  glutMotionFunc(motion_func);
   
-  /* set up menu 
-     目前有屬性 可加入exit 以及 String輸入功能 save or read 加入grid-line
-  */
+  /* set up menu */
+  polygon_m = glutCreateMenu(polygon_func); /* Create polygon-menu */
+  glutAddMenuEntry("Start", POLYGON_START);
+  glutAddMenuEntry("Finish", POLYGON_FINISH);
 
-  properties_m = glutCreateMenu(properties_func); /* Create color-menu */
-  glutAddMenuEntry("Type", TYPE_WINDOW);
-  glutAddMenuEntry("Size", SIZE_WINDOW);
-  glutAddMenuEntry("Color", COLOR_WINDOW);
-
+  draw_m = glutCreateMenu(draw_func); /* Create draw-menu */
+  glutAddSubMenu("Polygon", polygon_m);
+  glutAddMenuEntry("Pen", DRAW_PEN);
+  glutAddMenuEntry("Line", DRAW_LINE);
+  glutAddMenuEntry("Circle", DRAW_CIRCLE);
+  glutAddMenuEntry("Rectangle", DRAW_RECTANGLE);
 
   glutCreateMenu(top_menu_func);
-  glutAddSubMenu("Properties", properties_m);
+  glutAddSubMenu("Draw", draw_m);
+  glutAddMenuEntry("String", MENU_STRING);
+  glutAddSubMenu("Size", );
+  glutAddSubMenu("Color", );
+  glutAddSubMenu("Fill w/", );
+  glutAddSubMenu("File", );
   glutAttachMenu(GLUT_RIGHT_BUTTON);
 
   /*---Enter the event loop ----*/
   glutMainLoop();       
 }
+
+
+/* menu目前有屬性 可加入exit  save or read 加入grid-line
+ */
