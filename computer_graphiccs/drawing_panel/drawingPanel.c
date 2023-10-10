@@ -19,9 +19,10 @@
 #define    SIZE_X4  4
 #define    SIZE_X8  8
 #define    COLOR_EMPTY 0
-#define    COLOR_RED  1
-#define    COLOR_GREEN  2
-#define    COLOR_BLUE  3
+#define    COLOR_FILL  1
+#define    COLOR_RED  2
+#define    COLOR_GREEN  3
+#define    COLOR_BLUE  4
 
 #define    MAX_VERTICES  10
 #define    MAX_POLYGONS  10
@@ -34,6 +35,8 @@ menu_t     polygon_m, draw_m, string_m, size_m, color_m, fill_m;
 int curMode = DO_NOTHING;
 int pos_x, pos_y, first=0;
 float point_size=1.0;
+float curColor[3] = {1.0, 1.0, 1.0};
+int curFill = 1;
 
 /*store size of main window*/
 int winHeight=640, winWidth=960;
@@ -54,10 +57,10 @@ int nvertex = 0, npolygon = 0; // number of polygons
 void draw_circle()
 {
   static GLUquadricObj *mycircle=NULL;
-
+  glColor3fv(curColor);
   if(mycircle==NULL){
     mycircle = gluNewQuadric();
-    gluQuadricDrawStyle(mycircle,GLU_FILL);
+    gluQuadricDrawStyle(mycircle,(!curFill)?GL_LINE:GL_FILL);
   }
   glPushMatrix();
   glTranslatef(pos_x, pos_y, 0.0);
@@ -104,6 +107,7 @@ void reshape_func(int new_w, int new_h)
  */
 void keyboard_func(unsigned char key, int x, int y)
 {
+  glColor3fv(curColor);
   if(curMode == MENU_STRING){
     glRasterPos2i(pos_x, pos_y);
     glutBitmapCharacter(GLUT_BITMAP_8_BY_13, (int) key);
@@ -120,7 +124,7 @@ void mouse_func(int button, int state, int x, int y)
 {
   if(button!=GLUT_LEFT_BUTTON||state!=GLUT_DOWN)
     return;
-
+  glColor3fv(curColor);
   switch (curMode)
   {
   case POLYGON_START:
@@ -170,7 +174,11 @@ void mouse_func(int button, int state, int x, int y)
     }else{
       first=0;
       glLineWidth(point_size);     /* Define line width */
-      glBegin(GL_QUADS);    /* Draw the line */
+      if(!curFill){
+        glBegin(GL_LINE_LOOP);
+      }else{
+        glBegin(GL_QUADS);    /* Draw the line */
+      }
         glVertex2f(pos_x, pos_y);
         glVertex2f(pos_x, winHeight - y);
 	      glVertex2f(x, winHeight - y);
@@ -190,6 +198,7 @@ void mouse_func(int button, int state, int x, int y)
  */
 void motion_func(int  x, int y)
 {
+  glColor3fv(curColor);
   if(curMode!=DRAW_PEN) return;
   if(first==0){
     first = 1;
@@ -229,6 +238,8 @@ void  polygon_func(int value)
 
   case POLYGON_FINISH:
     npolygon++;
+    glPolygonMode(GL_FRONT_AND_BACK,
+      (!curFill)?GL_LINE:GL_FILL);
     glBegin(GL_POLYGON);
       for(int i = 0; i<polygons[npolygon-1].nvertices; i++){
         glVertex2i(polygons[npolygon-1].x[i], polygons[npolygon-1].y[i]);
@@ -288,12 +299,29 @@ void  size_func(int value)
 
 void  color_func(int value)
 {
-
+  switch (value)
+  {
+  case COLOR_RED:
+    curColor[0] = 1.0;
+    curColor[1] = curColor[2] = 0.0;
+    break;
+  case COLOR_GREEN:
+    curColor[1] = 1.0;
+    curColor[0] = curColor[2] = 0.0;
+    break;
+  case COLOR_BLUE:
+    curColor[2] = 1.0;
+    curColor[1] = curColor[0] = 0.0;
+    break;
+  
+  default:
+    break;
+  }
 }
 
 void  fill_func(int value)
 {
-
+  curFill = value;
 }
 
 /*---------------------------------------------------------------
@@ -340,10 +368,8 @@ int main(int argc, char **argv)
   glutAddMenuEntry("Blue", COLOR_BLUE);
 
   fill_m = glutCreateMenu(fill_func); /* Create fill-menu */
+  glutAddMenuEntry("Fill", COLOR_FILL);
   glutAddMenuEntry("No fill", COLOR_EMPTY);
-  glutAddMenuEntry("Red", COLOR_RED);
-  glutAddMenuEntry("Green", COLOR_GREEN);
-  glutAddMenuEntry("Blue", COLOR_BLUE);
 
   glutCreateMenu(top_menu_func);
   glutAddSubMenu("Draw ", draw_m);
