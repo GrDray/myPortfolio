@@ -7,18 +7,67 @@
 #include <GL/freeglut.h>
 
 /*define menu input */
+#define    DO_NOTHING  0
 #define    POLYGON_START  1
 #define    POLYGON_FINISH  2
-#define    DRAW_PEN  1
-#define    DRAW_LINE  2
-#define    DRAW_CIRCLE  3
-#define    DRAW_RECTANGLE  4
-#define    MENU_STRING  1
+#define    DRAW_PEN  3
+#define    DRAW_LINE  4
+#define    DRAW_CIRCLE  5
+#define    DRAW_RECTANGLE  6
+#define    MENU_STRING  7
+#define    SIZE_X2  2
+#define    SIZE_X4  4
+#define    SIZE_X8  8
+#define    COLOR_EMPTY 0
+#define    COLOR_RED  1
+#define    COLOR_GREEN  2
+#define    COLOR_BLUE  3
 
+#define    MAX_VERTICES  10
+#define    MAX_POLYGONS  10
+
+/* define variables for menu */
 typedef    int   menu_t;
-menu_t     polygon_m, draw_m, string_m;
+menu_t     polygon_m, draw_m, string_m, size_m, color_m, fill_m;
 
-int winHeight=640, winWidth=960; // the size of main window
+/* set mode to zero*/
+int curMode = DO_NOTHING;
+int pos_x, pos_y, first=0;
+float point_size=1.0;
+
+/*store size of main window*/
+int winHeight=640, winWidth=960;
+
+/* define polygon object */
+typedef struct polygon
+{
+  int nvertices;
+  int x[MAX_VERTICES];
+  int y[MAX_VERTICES]; 
+}polygon;
+polygon polygons[MAX_POLYGONS];
+int nvertex = 0, npolygon = 0; // number of polygons
+
+/*------------------------------------------------------------
+ * Procedure to draw a circle
+ */
+void draw_circle()
+{
+  static GLUquadricObj *mycircle=NULL;
+
+  if(mycircle==NULL){
+    mycircle = gluNewQuadric();
+    gluQuadricDrawStyle(mycircle,GLU_FILL);
+  }
+  glPushMatrix();
+  glTranslatef(pos_x, pos_y, 0.0);
+  gluDisk(mycircle,
+    0.0,           /* inner radius=0.0 */
+	  10.0,          /* outer radius=10.0 */
+	  16,            /* 16-side polygon */
+	  3);
+  glPopMatrix();
+}
 
 /*------------------------------------------------------------
  * Callback function for display, redisplay, expose events
@@ -39,7 +88,6 @@ void reshape_func(int new_w, int new_h)
 {
   winHeight = new_h;
   winWidth = new_w;
-
   glMatrixMode(GL_PROJECTION);
   glLoadIdentity();
   gluOrtho2D(0.0, (double) winWidth, 0.0, (double) winHeight);
@@ -56,6 +104,12 @@ void reshape_func(int new_w, int new_h)
  */
 void keyboard_func(unsigned char key, int x, int y)
 {
+  if(curMode == MENU_STRING){
+    glRasterPos2i(pos_x, pos_y);
+    glutBitmapCharacter(GLUT_BITMAP_8_BY_13, (int) key);
+    pos_x += 10;
+    glFinish();
+  }
   if(key=='Q'||key=='q') exit(0);
 }
 
@@ -66,6 +120,69 @@ void mouse_func(int button, int state, int x, int y)
 {
   if(button!=GLUT_LEFT_BUTTON||state!=GLUT_DOWN)
     return;
+
+  switch (curMode)
+  {
+  case POLYGON_START:
+    nvertex = polygons[npolygon].nvertices += 1;
+    polygons[npolygon].x[nvertex-1] = x;
+    polygons[npolygon].y[nvertex-1] = winHeight - y;
+    break;
+  
+  case MENU_STRING:
+    pos_x = x;  
+    pos_y = winHeight - y;
+    break;
+
+  case DRAW_LINE:
+    if(first==0){
+      first = 1;
+      pos_x = x;
+      pos_y = winHeight - y;
+	    glPointSize(point_size);
+      glBegin(GL_POINTS);   /*  Draw the 1st point */
+	      glVertex2f(x, winHeight-y);
+      glEnd();
+    }else{
+      first=0;
+      glLineWidth(point_size);     /* Define line width */
+      glBegin(GL_LINES);    /* Draw the line */
+        glVertex2f(pos_x, pos_y);
+	      glVertex2f(x, winHeight - y);
+      glEnd();
+    }
+    break;
+
+  case DRAW_CIRCLE:
+    pos_x = x; 
+    pos_y = winHeight - y;
+    draw_circle();
+    break;
+  case DRAW_RECTANGLE:
+    if(first==0){
+      first = 1;
+      pos_x = x;
+      pos_y = winHeight - y;
+	    glPointSize(point_size);
+      glBegin(GL_POINTS);   /*  Draw the 1st point */
+	      glVertex2f(x, winHeight-y);
+      glEnd();
+    }else{
+      first=0;
+      glLineWidth(point_size);     /* Define line width */
+      glBegin(GL_QUADS);    /* Draw the line */
+        glVertex2f(pos_x, pos_y);
+        glVertex2f(pos_x, winHeight - y);
+	      glVertex2f(x, winHeight - y);
+        glVertex2f(x, pos_y);
+      glEnd();
+    }
+    break;
+  
+  default:
+    break;
+  }
+  glFinish();
 }
 
 /*-------------------------------------------------------------
@@ -73,7 +190,19 @@ void mouse_func(int button, int state, int x, int y)
  */
 void motion_func(int  x, int y)
 {
-  
+  if(curMode!=DRAW_PEN) return;
+  if(first==0){
+    first = 1;
+    pos_x = x; pos_y = y;
+  }else{
+    glLineWidth(point_size);
+    glBegin(GL_LINES);
+      glVertex3f(pos_x, winHeight-pos_y, 0.0);
+      glVertex3f(x, winHeight - y, 0.0);
+    glEnd();
+    pos_x = x; pos_y = y;
+  }
+  glFinish();
 }
 
 
@@ -82,6 +211,9 @@ void motion_func(int  x, int y)
  */
 void top_menu_func(int value)
 {
+  if(value == MENU_STRING){
+    curMode = MENU_STRING;
+  }
 }
 
 /*-----------------------------------------------------------------
@@ -89,26 +221,45 @@ void top_menu_func(int value)
  */
 void  polygon_func(int value)
 {
+  switch(value){
+  case POLYGON_START:
+    polygons[npolygon].nvertices = 0;
+    curMode = POLYGON_START;
+    break;
 
+  case POLYGON_FINISH:
+    npolygon++;
+    glBegin(GL_POLYGON);
+      for(int i = 0; i<polygons[npolygon-1].nvertices; i++){
+        glVertex2i(polygons[npolygon-1].x[i], polygons[npolygon-1].y[i]);
+      }
+    glEnd();
+    glFlush();
+    curMode = DO_NOTHING;
+    break;
+
+  default:
+    break;
+  }
 }
 
 void  draw_func(int value)
 {
   /*set types to draw */
-
+  first = 0;
   switch(value){
-  case 1:
-    //myColor[0] = myColor[1] = myColor[2] = 1.0;
+  case DRAW_PEN:
+    curMode = DRAW_PEN;
+    break;
+  case DRAW_LINE:
+    curMode = DRAW_LINE;
     break;
 
-  case 2:
-    //myColor[0] = 1.0;
-    //myColor[1] = myColor[2] = 0.0;
+  case DRAW_CIRCLE:
+    curMode = DRAW_CIRCLE;
     break;
-
-  case COLOR_WINDOW:
-    //myColor[0] = myColor[2] = 0.0;
-    //myColor[1] = 1.0;
+  case DRAW_RECTANGLE:
+    curMode = DRAW_RECTANGLE;
     break;
 
   default:
@@ -116,31 +267,34 @@ void  draw_func(int value)
   }
 }
 
-void  string_func(int value)
+void  size_func(int value)
 {
-  /*set properties to input string */
-
-  switch(value){
-  case 1:
-    //myColor[0] = myColor[1] = myColor[2] = 1.0;
+  switch (value)
+  {
+  case SIZE_X2:
+    point_size = 2.0;
     break;
-
-  case 2:
-    //myColor[0] = 1.0;
-    //myColor[1] = myColor[2] = 0.0;
+  case SIZE_X4:
+    point_size = 4.0;
     break;
-
-  case COLOR_WINDOW:
-    //myColor[0] = myColor[2] = 0.0;
-    //myColor[1] = 1.0;
+  case SIZE_X8:
+    point_size = 8.0;
     break;
-
+  
   default:
     break;
   }
 }
 
+void  color_func(int value)
+{
 
+}
+
+void  fill_func(int value)
+{
+
+}
 
 /*---------------------------------------------------------------
  * Main procedure sets up the window environment.
@@ -175,13 +329,29 @@ int main(int argc, char **argv)
   glutAddMenuEntry("Circle", DRAW_CIRCLE);
   glutAddMenuEntry("Rectangle", DRAW_RECTANGLE);
 
+  size_m = glutCreateMenu(size_func); /* Create size-menu */
+  glutAddMenuEntry("x2", SIZE_X2);
+  glutAddMenuEntry("x4", SIZE_X4);
+  glutAddMenuEntry("x8", SIZE_X8);
+
+  color_m = glutCreateMenu(color_func); /* Create size-menu */
+  glutAddMenuEntry("Red", COLOR_RED);
+  glutAddMenuEntry("Green", COLOR_GREEN);
+  glutAddMenuEntry("Blue", COLOR_BLUE);
+
+  fill_m = glutCreateMenu(fill_func); /* Create fill-menu */
+  glutAddMenuEntry("No fill", COLOR_EMPTY);
+  glutAddMenuEntry("Red", COLOR_RED);
+  glutAddMenuEntry("Green", COLOR_GREEN);
+  glutAddMenuEntry("Blue", COLOR_BLUE);
+
   glutCreateMenu(top_menu_func);
-  glutAddSubMenu("Draw", draw_m);
-  glutAddMenuEntry("String", MENU_STRING);
-  glutAddSubMenu("Size", );
-  glutAddSubMenu("Color", );
-  glutAddSubMenu("Fill w/", );
-  glutAddSubMenu("File", );
+  glutAddSubMenu("Draw ", draw_m);
+  glutAddMenuEntry("String ", MENU_STRING);
+  glutAddSubMenu("Size ", size_m);
+  glutAddSubMenu("Color ", color_m);
+  glutAddSubMenu("Fill ", fill_m);
+  //glutAddSubMenu("File", );
   glutAttachMenu(GLUT_RIGHT_BUTTON);
 
   /*---Enter the event loop ----*/
