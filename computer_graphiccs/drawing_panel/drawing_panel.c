@@ -33,7 +33,7 @@ menu_t     polygon_m, draw_m, string_m, size_m, color_m, fill_m;
 
 /* current state */
 int curMode = DO_NOTHING;
-int pos_x, pos_y, first=0;
+int pos_x, pos_y, exist_one=0; // 這個object是否已經有至少一個pos點
 float curSize=1.0;
 float curColor[3] = {1.0, 1.0, 1.0};
 int curFill = 0;
@@ -45,6 +45,7 @@ int winHeight=640, winWidth=960;
 typedef struct position
 {
   float x, y;
+  position *next;
 }position;
 
 typedef struct object
@@ -53,21 +54,105 @@ typedef struct object
   float this_color[3];
   char string[MAX_STRING_LEN];
   position *pos;
-}object;
-object *first_objects=NULL;
-object *cur_objects=NULL;
 
-/* create new object and return the new location */
+  /* set the bound of this object 
+   * bound[0] for top-left, bound[1] for bottom-right
+   */
+  position bound[2];
+  object *next;
+}object;
+object *first_objects=NULL; // store the first object
+object *cur_objects=NULL; // store the current (latest) object
+
+/* create new object and set cur_object point to new location */
 void newObject(int type, float size, int fill, int show, float *color) {
   object *newObject = (object *)malloc(sizeof(object));
   newObject->this_type = type;
   newObject->this_size = size;
   newObject->if_fill = fill;
   newObject->if_show = show;
-  if(!first_objects) first_objects = newObject;
-  cur_objects = newObject;
+  newObject->next = NULL;
+  newObject->pos = NULL;
+  for(int i=0; i<3; i++) newObject->this_color[i] = color[i];
+
+  /* renew the linked list pointer */
+  if(!first_objects){
+    first_objects = newObject;
+    cur_objects = newObject;
+  }else{
+    cur_objects->next = newObject;
+    cur_objects = newObject;
+  }
 }
 
+/* delete object and release memory */
+void deleteObject(object *obj){
+  object *pos = obj->pos;
+  object *pos_next = NULL;
+  while(pos!=NULL){
+    pos_next = pos->next;
+    free(pos);
+    pos = pos_next;
+  }
+  free(obj);
+}
+
+/* delete all objects and release memory */
+void deleteAllObjects() {
+  while (first_objects != NULL) {
+    object *pos = first_objects->pos;
+    while (pos != NULL) {
+      object *temp = pos;
+      pos = pos->next;
+      free(temp);
+    }
+    object *temp = first_objects;
+    first_objects = first_objects->next;
+    free(temp);
+  }
+}
+
+/* add new xy positions to given object*/
+void addPosToObject(object *obj, int x, int y){
+  position *newPos = (position *)malloc(sizeof(position));
+  newPos->x = (float)x;
+  newPos->y = (float)y;
+  newPos->next = NULL;
+  if (obj->pos == NULL) {
+    obj->pos = newPos;
+    obj->bound[0].x = obj->bound[1].x = x;
+    obj->bound[0].y = obj->bound[1].y = y;
+  }else{
+    position *current = obj->pos;
+    while (current->next != NULL) {
+      current = current->next;
+    }
+    current->next = newPos;
+    if(x<obj->bound[0].x){
+      obj->bound[0].x = x;
+    }else if(x>obj->bound[1].x){
+      obj->bound[1].x = x;
+    }
+    if(y>obj->bound[0].y){
+      obj->bound[0].y = y;
+    }else if(y<obj->bound[1].y){
+      obj->bound[1].y = y;
+    }
+  }
+}
+
+/* show objects */
+void showObject(object *obj){
+  switch (obj->this_type)
+  {
+  case POLYGON_FINISH:
+    
+    break;
+  
+  default:
+    break;
+  }
+}
 
 
 
@@ -138,7 +223,10 @@ void keyboard_func(unsigned char key, int x, int y)
     pos_x += 10;
     glFinish();
   }
-  if(key=='Q'||key=='q') exit(0);
+  if(key=='Q'||key=='q') {
+    deleteAllObjects();
+    exit(0);
+  }
 }
 
 /*------------------------------------------------------------
@@ -152,9 +240,11 @@ void mouse_func(int button, int state, int x, int y)
   switch (curMode)
   {
   case POLYGON_START:
-    nvertex = polygons[npolygon].nvertices += 1;
-    polygons[npolygon].x[nvertex-1] = x;
-    polygons[npolygon].y[nvertex-1] = winHeight - y;
+    if(!exist_one){
+      newObject(POLYGON_START, curSize, curFill, SHOW, curColor);
+      exist_one = 1;
+    }
+    addPosToObject(cur_objects, x, winHeight - y);
     break;
   
   case INPUT_STRING:
@@ -163,8 +253,8 @@ void mouse_func(int button, int state, int x, int y)
     break;
 
   case DRAW_LINE:
-    if(first==0){
-      first = 1;
+    if(exist_one==0){
+      exist_one = 1;
       pos_x = x;
       pos_y = winHeight - y;
 	    glPointSize(curSize);
@@ -172,7 +262,7 @@ void mouse_func(int button, int state, int x, int y)
 	      glVertex2f(x, winHeight-y);
       glEnd();
     }else{
-      first=0;
+      exist_one=0;
       glLineWidth(curSize);     /* Define line width */
       glBegin(GL_LINES);    /* Draw the line */
         glVertex2f(pos_x, pos_y);
@@ -187,8 +277,8 @@ void mouse_func(int button, int state, int x, int y)
     draw_circle();
     break;
   case DRAW_RECTANGLE:
-    if(first==0){
-      first = 1;
+    if(exist_one==0){
+      exist_one = 1;
       pos_x = x;
       pos_y = winHeight - y;
 	    glPointSize(curSize);
@@ -196,7 +286,7 @@ void mouse_func(int button, int state, int x, int y)
 	      glVertex2f(x, winHeight-y);
       glEnd();
     }else{
-      first=0;
+      exist_one=0;
       glLineWidth(curSize);     /* Define line width */
       if(curFill == 0){
         glBegin(GL_LINE_LOOP);
@@ -224,8 +314,8 @@ void motion_func(int  x, int y)
 {
   glColor3fv(curColor);
   if(curMode!=DRAW_PEN) return;
-  if(first==0){
-    first = 1;
+  if(exist_one==0){
+    exist_one = 1;
     pos_x = x; pos_y = y;
   }else{
     glLineWidth(curSize);
@@ -256,18 +346,15 @@ void  polygon_func(int value)
 {
   switch(value){
   case POLYGON_START:
-    polygons[npolygon].nvertices = 0;
+    exist_one = 0;
     curMode = POLYGON_START;
     break;
 
   case POLYGON_FINISH:
-    npolygon++;
     glPolygonMode(GL_FRONT_AND_BACK,
       (curFill == 0)?GL_LINE:GL_FILL);
     glBegin(GL_POLYGON);
-      for(int i = 0; i<polygons[npolygon-1].nvertices; i++){
-        glVertex2i(polygons[npolygon-1].x[i], polygons[npolygon-1].y[i]);
-      }
+      
     glEnd();
     glFlush();
     curMode = DO_NOTHING;
@@ -281,7 +368,7 @@ void  polygon_func(int value)
 void  draw_func(int value)
 {
   /*set types to draw */
-  first = 0;
+  exist_one = 0;
   switch(value){
   case DRAW_PEN:
     curMode = DRAW_PEN;
