@@ -15,52 +15,51 @@
 #define    DRAW_CIRCLE  5
 #define    DRAW_RECTANGLE  6
 #define    INPUT_STRING  7
-#define    SIZE_X2  2
-#define    SIZE_X4  4
-#define    SIZE_X8  8
+#define    MENU_EXIT  8
 #define    COLOR_NO_FILL 0
 #define    COLOR_FILL  1
 #define    COLOR_RED  2
 #define    COLOR_GREEN  3
 #define    COLOR_BLUE  4
 #define    MAX_STRING_LEN  50
-#define    SHOW  0
-#define    NO_SHOW  1
+#define    SHOW  1
+#define    NO_SHOW  0
 
 /* define variables for menu */
 typedef    int   menu_t;
 menu_t     polygon_m, draw_m, string_m, size_m, color_m, fill_m;
 
 /* current state */
-int curMode = DO_NOTHING;
+int curMode = DO_NOTHING; // macro
 int pos_x, pos_y, exist_one=0; // 這個object是否已經有至少一個pos點
 float curSize=1.0;
 float curColor[3] = {1.0, 1.0, 1.0};
-int curFill = 0;
+int curFill = COLOR_NO_FILL; //macro
 
 /*store size of main window*/
 int winHeight=640, winWidth=960;
 
 /* define object */
-typedef struct position
+struct Position
 {
   float x, y;
-  position *next;
-}position;
+  struct Position *next;
+};
+typedef struct Position position;
 
-typedef struct object
+struct Object
 {
   int this_type, this_size, if_fill, if_show;
   float this_color[3];
   char string[MAX_STRING_LEN];
   position *pos;
-
   /* set the bound of this object 
    * bound[0] for top-left, bound[1] for bottom-right
    */
   position bound[2];
-  object *next;
-}object;
+  struct Object *next;
+};
+typedef struct Object object;
 object *first_objects=NULL; // store the first object
 object *cur_objects=NULL; // store the current (latest) object
 
@@ -74,7 +73,6 @@ void newObject(int type, float size, int fill, int show, float *color) {
   newObject->next = NULL;
   newObject->pos = NULL;
   for(int i=0; i<3; i++) newObject->this_color[i] = color[i];
-
   /* renew the linked list pointer */
   if(!first_objects){
     first_objects = newObject;
@@ -100,9 +98,9 @@ void deleteObject(object *obj){
 /* delete all objects and release memory */
 void deleteAllObjects() {
   while (first_objects != NULL) {
-    object *pos = first_objects->pos;
+    position *pos = first_objects->pos;
     while (pos != NULL) {
-      object *temp = pos;
+      position *temp = pos;
       pos = pos->next;
       free(temp);
     }
@@ -143,12 +141,26 @@ void addPosToObject(object *obj, int x, int y){
 
 /* show objects */
 void showObject(object *obj){
-  switch (obj->this_type)
-  {
+  /* check if we show it*/
+  if(!obj->if_show) return;
+  /* apply openGL states */
+  glPointSize(obj->this_size);
+  glLineWidth(obj->this_size);
+  glColor3fv(obj->this_color);
+  /* show objects depend on its type */
+  switch (obj->this_type){
   case POLYGON_FINISH:
-    
+    position *pos = obj->pos;
+    /*set if fill the polygon*/
+    glPolygonMode(GL_FRONT_AND_BACK, (obj->if_fill)?GL_FILL:GL_LINE);
+    glBegin(GL_POLYGON);
+      while(pos){
+        glVertex2i(pos->x, pos->y);
+        pos = pos->next;
+      }
+    glEnd();
+    glFlush();
     break;
-  
   default:
     break;
   }
@@ -190,6 +202,11 @@ void display_func(void)
   /* define window background color */
   glClearColor (0.2, 0.2, 0.2, 0.0);
   glClear(GL_COLOR_BUFFER_BIT);
+  object *temp = first_objects;
+  while(temp){
+    showObject(temp);
+    temp = temp->next;
+  }
   glFlush();
 }
 
@@ -205,7 +222,6 @@ void reshape_func(int new_w, int new_h)
   gluOrtho2D(0.0, (double) winWidth, 0.0, (double) winHeight);
   glViewport(0,0,winWidth,winHeight);
   glMatrixMode(GL_MODELVIEW);
-
   glutPostRedisplay();   /*---Trigger Display event for redisplay window*/
 }
 
@@ -234,11 +250,8 @@ void keyboard_func(unsigned char key, int x, int y)
  */
 void mouse_func(int button, int state, int x, int y)
 {
-  if(button!=GLUT_LEFT_BUTTON||state!=GLUT_DOWN)
-    return;
-  glColor3fv(curColor);
-  switch (curMode)
-  {
+  if(button!=GLUT_LEFT_BUTTON||state!=GLUT_DOWN)  return;
+  switch (curMode){
   case POLYGON_START:
     if(!exist_one){
       newObject(POLYGON_START, curSize, curFill, SHOW, curColor);
@@ -246,12 +259,10 @@ void mouse_func(int button, int state, int x, int y)
     }
     addPosToObject(cur_objects, x, winHeight - y);
     break;
-  
   case INPUT_STRING:
     pos_x = x;  
     pos_y = winHeight - y;
     break;
-
   case DRAW_LINE:
     if(exist_one==0){
       exist_one = 1;
@@ -270,7 +281,6 @@ void mouse_func(int button, int state, int x, int y)
       glEnd();
     }
     break;
-
   case DRAW_CIRCLE:
     pos_x = x; 
     pos_y = winHeight - y;
@@ -300,7 +310,6 @@ void mouse_func(int button, int state, int x, int y)
       glEnd();
     }
     break;
-  
   default:
     break;
   }
@@ -334,8 +343,16 @@ void motion_func(int  x, int y)
  */
 void top_menu_func(int value)
 {
-  if(value == INPUT_STRING){
+  switch (value){
+  case MENU_EXIT:
+    deleteAllObjects();
+    exit(0);
+    break;
+  case INPUT_STRING:
     curMode = INPUT_STRING;
+    break;
+  default:
+    break;
   }
 }
 
@@ -349,17 +366,12 @@ void  polygon_func(int value)
     exist_one = 0;
     curMode = POLYGON_START;
     break;
-
   case POLYGON_FINISH:
-    glPolygonMode(GL_FRONT_AND_BACK,
-      (curFill == 0)?GL_LINE:GL_FILL);
-    glBegin(GL_POLYGON);
-      
-    glEnd();
-    glFlush();
+    cur_objects->this_type = POLYGON_FINISH;
+    showObject(cur_objects);
+    exist_one = 0;
     curMode = DO_NOTHING;
     break;
-
   default:
     break;
   }
@@ -376,14 +388,12 @@ void  draw_func(int value)
   case DRAW_LINE:
     curMode = DRAW_LINE;
     break;
-
   case DRAW_CIRCLE:
     curMode = DRAW_CIRCLE;
     break;
   case DRAW_RECTANGLE:
     curMode = DRAW_RECTANGLE;
     break;
-
   default:
     break;
   }
@@ -391,18 +401,19 @@ void  draw_func(int value)
 
 void  size_func(int value)
 {
-  switch (value)
-  {
-  case SIZE_X2:
+  switch (value){
+  case 1:
+    curSize = 1.0;
+    break;
+  case 2:
     curSize = 2.0;
     break;
-  case SIZE_X4:
+  case 4:
     curSize = 4.0;
     break;
-  case SIZE_X8:
-    curSize = 8.0;
+  case 6:
+    curSize = 6.0;
     break;
-  
   default:
     break;
   }
@@ -410,8 +421,7 @@ void  size_func(int value)
 
 void  color_func(int value)
 {
-  switch (value)
-  {
+  switch (value){
   case COLOR_RED:
     curColor[0] = 1.0;
     curColor[1] = curColor[2] = 0.0;
@@ -424,7 +434,6 @@ void  color_func(int value)
     curColor[2] = 1.0;
     curColor[1] = curColor[0] = 0.0;
     break;
-  
   default:
     break;
   }
@@ -469,9 +478,10 @@ int main(int argc, char **argv)
   glutAddMenuEntry("Rectangle", DRAW_RECTANGLE);
 
   size_m = glutCreateMenu(size_func); /* Create size-menu */
-  glutAddMenuEntry("x2", SIZE_X2);
-  glutAddMenuEntry("x4", SIZE_X4);
-  glutAddMenuEntry("x8", SIZE_X8);
+  glutAddMenuEntry("x1", 1);
+  glutAddMenuEntry("x2", 2);
+  glutAddMenuEntry("x4", 4);
+  glutAddMenuEntry("x6", 6);
 
   color_m = glutCreateMenu(color_func); /* Create size-menu */
   glutAddMenuEntry("Red", COLOR_RED);
@@ -479,7 +489,7 @@ int main(int argc, char **argv)
   glutAddMenuEntry("Blue", COLOR_BLUE);
 
   fill_m = glutCreateMenu(fill_func); /* Create fill-menu */
-  glutAddMenuEntry("Fill", 1);
+  glutAddMenuEntry("Fill", COLOR_FILL);
   glutAddMenuEntry("No fill", COLOR_NO_FILL);
 
   glutCreateMenu(top_menu_func);
@@ -488,6 +498,7 @@ int main(int argc, char **argv)
   glutAddSubMenu("Size ", size_m);
   glutAddSubMenu("Color ", color_m);
   glutAddSubMenu("Fill ", fill_m);
+  glutAddMenuEntry("Exit", MENU_EXIT);
   //glutAddSubMenu("File", );
   glutAttachMenu(GLUT_RIGHT_BUTTON);
 
