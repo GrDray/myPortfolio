@@ -16,6 +16,7 @@
 #define    DRAW_RECTANGLE  6
 #define    INPUT_STRING  7
 #define    MENU_EXIT  8
+#define    INPUT_CURSOR  9
 #define    COLOR_NO_FILL 0
 #define    COLOR_FILL  1
 #define    COLOR_RED  2
@@ -31,10 +32,16 @@ menu_t     polygon_m, draw_m, string_m, size_m, color_m, fill_m;
 
 /* current state */
 int curMode = DO_NOTHING; // macro
-int pos_x, pos_y, exist_one=0; // 這個object是否已經有至少一個pos點
+int pos_x, pos_y, exist_one=0; // check if this object has at least 1 position
 float curSize=1.0;
 float curColor[3] = {1.0, 1.0, 1.0};
 int curFill = COLOR_NO_FILL; //macro
+
+/* set the current states to origin */
+void stateInit(){
+  curMode = DO_NOTHING;
+  exist_one = 0;
+}
 
 /*store size of main window*/
 int winHeight=640, winWidth=960;
@@ -139,37 +146,50 @@ void addPosToObject(object *obj, int x, int y){
   }
 }
 
+
+
+
+
+
 /* show objects */
 void showObject(object *obj){
   /* check if we show it*/
   if(!obj->if_show) return;
   /* apply openGL states */
-  glPointSize(obj->this_size);
-  glLineWidth(obj->this_size);
+            glPointSize(obj->this_size);
   glColor3fv(obj->this_color);
   /* show objects depend on its type */
   switch (obj->this_type){
   case POLYGON_FINISH:
-    position *pos = obj->pos;
+    position *pos_poly = obj->pos;
     /*set if fill the polygon*/
     glPolygonMode(GL_FRONT_AND_BACK, (obj->if_fill)?GL_FILL:GL_LINE);
     glBegin(GL_POLYGON);
-      while(pos){
-        glVertex2i(pos->x, pos->y);
-        pos = pos->next;
+      while(pos_poly){
+        glVertex2i(pos_poly->x, pos_poly->y);
+        pos_poly = pos_poly->next;
       }
     glEnd();
-    glFlush();
+    break;
+  case DRAW_PEN:
+    position *pos_pen = obj->pos;
+    position *pos_pen_next = pos_pen->next;
+    glLineWidth(obj->this_size);
+    glBegin(GL_LINES);
+      while(pos_pen&&pos_pen_next){
+        glVertex3f(pos_pen->x, pos_pen->y, 0.0);
+        glVertex3f(pos_pen_next->x, pos_pen_next->y, 0.0);
+        if(!pos_pen_next->next) break;
+        pos_pen = pos_pen_next->next;
+        pos_pen_next = pos_pen->next;
+      }
+    glEnd();
     break;
   default:
     break;
   }
+  glFlush();
 }
-
-
-
-
-
 
 
 /*------------------------------------------------------------
@@ -203,6 +223,7 @@ void display_func(void)
   glClearColor (0.2, 0.2, 0.2, 0.0);
   glClear(GL_COLOR_BUFFER_BIT);
   object *temp = first_objects;
+  /* show all objects */
   while(temp){
     showObject(temp);
     temp = temp->next;
@@ -250,10 +271,12 @@ void keyboard_func(unsigned char key, int x, int y)
  */
 void mouse_func(int button, int state, int x, int y)
 {
-  if(button!=GLUT_LEFT_BUTTON||state!=GLUT_DOWN)  return;
+  if(button!=GLUT_LEFT_BUTTON||state!=GLUT_DOWN){
+    return;
+  }
   switch (curMode){
   case POLYGON_START:
-    if(!exist_one){
+    if(!exist_one){    // if the object not yet have one position
       newObject(POLYGON_START, curSize, curFill, SHOW, curColor);
       exist_one = 1;
     }
@@ -321,21 +344,28 @@ void mouse_func(int button, int state, int x, int y)
  */
 void motion_func(int  x, int y)
 {
-  glColor3fv(curColor);
-  if(curMode!=DRAW_PEN) return;
-  if(exist_one==0){
-    exist_one = 1;
-    pos_x = x; pos_y = y;
-  }else{
-    glLineWidth(curSize);
-    glBegin(GL_LINES);
-      glVertex3f(pos_x, winHeight-pos_y, 0.0);
-      glVertex3f(x, winHeight - y, 0.0);
-    glEnd();
-    pos_x = x; pos_y = y;
+  switch (curMode){
+  case DRAW_PEN:
+    if(!exist_one){    // if the object not yet have one position
+      newObject(DRAW_PEN, curSize, curFill, SHOW, curColor);
+      exist_one = 1;
+      pos_x = x; pos_y = winHeight - y;
+    }else{
+      glBegin(GL_LINES);
+        glVertex3f(pos_x, pos_y, 0.0);
+        glVertex3f(x, winHeight - y, 0.0);
+      glEnd();
+      pos_x = x; pos_y = winHeight - y;
+    }
+    addPosToObject(cur_objects, pos_x, pos_y); // store current position
+    break;
+  default:
+    break;
   }
   glFinish();
 }
+
+
 
 
 /*---------------------------------------------------------------
@@ -343,10 +373,18 @@ void motion_func(int  x, int y)
  */
 void top_menu_func(int value)
 {
+  /*make sure everytime we want to create a new object, the exist_one=0
+   * and curMode=DO_NOTHING
+   */
+  stateInit();
   switch (value){
+  /* we can exit and make sure we 'free' all memory that 'malloc' give */
   case MENU_EXIT:
     deleteAllObjects();
     exit(0);
+    break;
+  /* we can click anywhere and nothing would happen */
+  case INPUT_CURSOR:
     break;
   case INPUT_STRING:
     curMode = INPUT_STRING;
@@ -361,16 +399,19 @@ void top_menu_func(int value)
  */
 void  polygon_func(int value)
 {
+  /*make sure everytime we want to create a new object, the exist_one=0
+   * and curMode=DO_NOTHING
+   */
+  stateInit();
   switch(value){
   case POLYGON_START:
-    exist_one = 0;
+    fprintf(stderr,"Start drawing polygon.\n");
     curMode = POLYGON_START;
     break;
   case POLYGON_FINISH:
+    fprintf(stderr,"Finish drawing polygon.\n");
     cur_objects->this_type = POLYGON_FINISH;
     showObject(cur_objects);
-    exist_one = 0;
-    curMode = DO_NOTHING;
     break;
   default:
     break;
@@ -379,10 +420,13 @@ void  polygon_func(int value)
 
 void  draw_func(int value)
 {
-  /*set types to draw */
-  exist_one = 0;
+  /*make sure everytime we want to create a new object, the exist_one=0
+   * and curMode=DO_NOTHING
+   */
+  stateInit();
   switch(value){
   case DRAW_PEN:
+    fprintf(stderr,"Start using pen.\n");
     curMode = DRAW_PEN;
     break;
   case DRAW_LINE:
@@ -417,6 +461,8 @@ void  size_func(int value)
   default:
     break;
   }
+  glPointSize(curSize);
+  glLineWidth(curSize);
 }
 
 void  color_func(int value)
@@ -437,6 +483,7 @@ void  color_func(int value)
   default:
     break;
   }
+  glColor3fv(curColor);
 }
 
 void  fill_func(int value)
@@ -493,13 +540,13 @@ int main(int argc, char **argv)
   glutAddMenuEntry("No fill", COLOR_NO_FILL);
 
   glutCreateMenu(top_menu_func);
+  glutAddMenuEntry("Cursor", INPUT_CURSOR);
   glutAddSubMenu("Draw ", draw_m);
   glutAddMenuEntry("String ", INPUT_STRING);
   glutAddSubMenu("Size ", size_m);
   glutAddSubMenu("Color ", color_m);
   glutAddSubMenu("Fill ", fill_m);
   glutAddMenuEntry("Exit", MENU_EXIT);
-  //glutAddSubMenu("File", );
   glutAttachMenu(GLUT_RIGHT_BUTTON);
 
   /*---Enter the event loop ----*/
