@@ -39,14 +39,16 @@ float curSize=1.0;
 float curColor[3] = {1.0, 1.0, 1.0};
 int curFill = COLOR_NO_FILL; //macro
 
-int pos_x, pos_y;
+int pos_x=-1, pos_y;  // pos_x < 0 means the current position is not valid
 int pos_x_end, pos_y_end; // for DRAW_LINE to show line in real-time
 float mid_x, mid_y, radius; // mid-point for DRAW_CIRCLE to show circle in real-time
 
-/* set the current states to origin */
+/* reset the current states */
 void stateInit(){
+  fprintf(stderr, "state has been reset\n");
   curMode = DO_NOTHING;
   exist_one = 0;
+  pos_x=-1;
 }
 
 /*store size of main window*/
@@ -65,12 +67,15 @@ struct Object
   GLUquadricObj *special_type; // for complex objects like circle
   int this_type, this_size, if_fill, if_show;
   float this_color[3];
-  char string[MAX_STRING_LEN];
   position *pos;
   /* set the bound of this object 
    * bound[0] for top-left, bound[1] for bottom-right
    */
   position bound[2];
+  /*if it is string type, then use bound[1] to store start point
+   *   and use if_fill as the length of string 
+   */
+  char string[MAX_STRING_LEN];
   struct Object *next;
 };
 typedef struct Object object;
@@ -206,6 +211,21 @@ void showObject(object *obj){
       }
     glEnd();
     break;
+  case DRAW_CIRCLE:
+    position *pos_circle = obj->pos;
+    if(!pos_circle || !pos_circle->next) return;
+    glLineWidth(obj->this_size);
+    drawCircle(obj);
+    break;
+  case INPUT_STRING:
+    int pos_str_x = obj->bound[1].x;
+    int pos_str_y = obj->bound[1].y;
+    for(int i=0; i<obj->if_fill; i++){
+      glRasterPos2i(pos_str_x, pos_str_y);
+      glutBitmapCharacter(GLUT_BITMAP_8_BY_13, (int) obj->string[i]);
+      pos_str_x += 10;
+    }
+    break;
   case DRAW_LINE:
     position *pos_line = obj->pos;
     if(!pos_line || !pos_line->next) return;
@@ -215,12 +235,6 @@ void showObject(object *obj){
       glVertex3f(pos_line->x, pos_line->y, 0.0);
       glVertex3f(pos_line_next->x, pos_line_next->y, 0.0);
     glEnd();
-    break;
-  case DRAW_CIRCLE:
-    position *pos_circle = obj->pos;
-    if(!pos_circle || !pos_circle->next) return;
-    glLineWidth(obj->this_size);
-    drawCircle(obj);
     break;
   case DRAW_PEN:
     position *pos_pen = obj->pos;
@@ -303,17 +317,33 @@ void reshape_func(int new_w, int new_h)
  */
 void keyboard_func(unsigned char key, int x, int y)
 {
-  glColor3fv(curColor);
-  if(curMode == INPUT_STRING){
-    glRasterPos2i(pos_x, pos_y);
-    glutBitmapCharacter(GLUT_BITMAP_8_BY_13, (int) key);
-    pos_x += 10;
-    glFinish();
+  switch (curMode){
+  case INPUT_STRING:
+    if(pos_x<0) return;
+    if(!exist_one){
+      exist_one = 1;
+      newObject(INPUT_STRING, curSize, curFill, SHOW, curColor);
+      cur_objects->bound[1].x = pos_x;
+      cur_objects->bound[1].y = pos_y;
+      cur_objects->if_fill = 0;
+    }
+    int str_len = cur_objects->if_fill;
+    if(str_len<MAX_STRING_LEN-1){
+      cur_objects->string[str_len] = key;
+      cur_objects->if_fill += 1;
+    }else{
+      fprintf(stderr, "over the length limit.\n");
+    }
+    break;
+  default:
+    break;
   }
   if(key=='Q'||key=='q') {
     deleteAllObjects();
     exit(0);
   }
+  glutPostRedisplay();
+  glFinish();
 }
 
 /*------------------------------------------------------------
@@ -381,8 +411,12 @@ void mouse_func(int button, int state, int x, int y)
     }
     break;
   case INPUT_STRING:
-    pos_x = x;  
-    pos_y = winHeight - y;
+    if(!exist_one && state==GLUT_DOWN){
+      pos_x = x;  
+      pos_y = winHeight - y;
+    }else if(exist_one && state==GLUT_DOWN){
+      stateInit();
+    }
     break;
   default:
     break;
@@ -399,7 +433,6 @@ void motion_func(int  x, int y)
   case DRAW_LINE:
     pos_x_end=x; pos_y_end=winHeight - y;
     /* use display callback to show line in real-time */
-    glutPostRedisplay();
     break;
   case DRAW_CIRCLE:
     pos_x_end=x; pos_y_end=winHeight - y;
@@ -407,7 +440,6 @@ void motion_func(int  x, int y)
     mid_y = 0.5*(pos_y+pos_y_end);
     radius = 0.5*sqrt(pow(pos_x-pos_x_end, 2)+pow(pos_y-pos_y_end, 2));
     /* use display callback to show line in real-time */
-    glutPostRedisplay();
     break;
   case DRAW_PEN:
     if(exist_one){    // if the object not yet have one position
@@ -419,11 +451,11 @@ void motion_func(int  x, int y)
     }
     addPosToObject(cur_objects, pos_x, pos_y); // store current position
     /* use display callback to show in real-time */
-    glutPostRedisplay();
     break;
   default:
     break;
   }
+  glutPostRedisplay();
   glFinish();
 }
 
@@ -440,6 +472,9 @@ void top_menu_func(int value)
    */
   stateInit();
   switch (value){
+  case INPUT_STRING:
+    curMode = INPUT_STRING;
+    break;
   /* we can exit and make sure we 'free' all memory that 'malloc' give */
   case MENU_EXIT:
     deleteAllObjects();
@@ -452,9 +487,6 @@ void top_menu_func(int value)
   /* we can click anywhere and nothing would happen */
   case INPUT_CURSOR:
     break;
-  case INPUT_STRING:
-    curMode = INPUT_STRING;
-    break;
   default:
     break;
   }
@@ -466,7 +498,7 @@ void top_menu_func(int value)
 void  polygon_func(int value)
 {
   /*make sure everytime we want to create a new object, the exist_one=0
-   * and curMode=DO_NOTHING
+   * and curMode=DO_NOTHING and pos_x < 0
    */
   stateInit();
   switch(value){
@@ -623,4 +655,5 @@ int main(int argc, char **argv)
 
 
 /* menu目前有屬性 可加入exit  save or read 加入grid-line
+         檢查所有stateInit的地方
  */
