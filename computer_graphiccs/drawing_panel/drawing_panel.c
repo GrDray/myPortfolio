@@ -1,5 +1,6 @@
 /******************************************************************
  * Building a drawing panel.
+ * WARNING pen function may be dangerous
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,6 +18,7 @@
 #define    INPUT_STRING  7
 #define    MENU_EXIT  8
 #define    INPUT_CURSOR  9
+#define    MENU_CLEAN  10
 #define    COLOR_NO_FILL 0
 #define    COLOR_FILL  1
 #define    COLOR_RED  2
@@ -32,10 +34,14 @@ menu_t     polygon_m, draw_m, string_m, size_m, color_m, fill_m;
 
 /* current state */
 int curMode = DO_NOTHING; // macro
-int pos_x, pos_y, exist_one=0; // check if this object has at least 1 position
+int exist_one=0; // check if this object has at least 1 position
 float curSize=1.0;
 float curColor[3] = {1.0, 1.0, 1.0};
 int curFill = COLOR_NO_FILL; //macro
+
+int pos_x, pos_y;
+int pos_x_end, pos_y_end; // for DRAW_LINE to show line in real-time
+float mid_x, mid_y, radius; // mid-point for DRAW_CIRCLE to show circle in real-time
 
 /* set the current states to origin */
 void stateInit(){
@@ -56,6 +62,7 @@ typedef struct Position position;
 
 struct Object
 {
+  GLUquadricObj *special_type; // for complex objects like circle
   int this_type, this_size, if_fill, if_show;
   float this_color[3];
   char string[MAX_STRING_LEN];
@@ -73,6 +80,7 @@ object *cur_objects=NULL; // store the current (latest) object
 /* create new object and set cur_object point to new location */
 void newObject(int type, float size, int fill, int show, float *color) {
   object *newObject = (object *)malloc(sizeof(object));
+  newObject->special_type = NULL;
   newObject->this_type = type;
   newObject->this_size = size;
   newObject->if_fill = fill;
@@ -93,12 +101,12 @@ void newObject(int type, float size, int fill, int show, float *color) {
 /* delete object and release memory */
 void deleteObject(object *obj){
   object *pos = obj->pos;
-  object *pos_next = NULL;
-  while(pos!=NULL){
-    pos_next = pos->next;
-    free(pos);
-    pos = pos_next;
-  }
+  while (pos != NULL) {
+      position *temp = pos;
+      pos = pos->next;
+      free(temp);
+      temp = NULL;
+    }
   free(obj);
 }
 
@@ -110,11 +118,15 @@ void deleteAllObjects() {
       position *temp = pos;
       pos = pos->next;
       free(temp);
+      temp = NULL;
     }
     object *temp = first_objects;
     first_objects = first_objects->next;
     free(temp);
+    temp = NULL;
   }
+  cur_objects = NULL;
+  first_objects = NULL;
 }
 
 /* add new xy positions to given object*/
@@ -146,9 +158,32 @@ void addPosToObject(object *obj, int x, int y){
   }
 }
 
+/* for the gluNewQuadric object */
+void specialTypeInit(object *obj){
+  if(obj->special_type==NULL){
+    obj->special_type = gluNewQuadric();
+    gluQuadricDrawStyle(obj->special_type, GLU_FILL);
+  }
+}
 
-
-
+/*------------------------------------------------------------
+ * Procedure to draw a circle
+ */
+void drawCircle(object *obj)
+{
+  if(!obj->special_type) return;
+  position *pos = obj->pos;
+  position *pos_next = pos->next;
+  float radius = 0.5*sqrt(pow(pos->x-pos_next->x, 2)+pow(pos->y-pos_next->y, 2));
+  glPushMatrix();
+  glTranslatef(0.5*(pos->x+pos_next->x), 0.5*(pos->y+pos_next->y), 0.0);
+  gluDisk(obj->special_type,
+    (obj->if_fill)?0.0:(radius - obj->this_size),           /* inner radius=0.0 */
+	  radius,    /* outer radius=10.0 */
+	  25,            /* 16-side polygon */
+	  3);
+  glPopMatrix();
+}
 
 
 /* show objects */
@@ -156,7 +191,7 @@ void showObject(object *obj){
   /* check if we show it*/
   if(!obj->if_show) return;
   /* apply openGL states */
-            glPointSize(obj->this_size);
+  glPointSize(obj->this_size);
   glColor3fv(obj->this_color);
   /* show objects depend on its type */
   switch (obj->this_type){
@@ -170,6 +205,22 @@ void showObject(object *obj){
         pos_poly = pos_poly->next;
       }
     glEnd();
+    break;
+  case DRAW_LINE:
+    position *pos_line = obj->pos;
+    if(!pos_line || !pos_line->next) return;
+    position *pos_line_next = pos_line->next;
+    glLineWidth(obj->this_size);
+    glBegin(GL_LINES);
+      glVertex3f(pos_line->x, pos_line->y, 0.0);
+      glVertex3f(pos_line_next->x, pos_line_next->y, 0.0);
+    glEnd();
+    break;
+  case DRAW_CIRCLE:
+    position *pos_circle = obj->pos;
+    if(!pos_circle || !pos_circle->next) return;
+    glLineWidth(obj->this_size);
+    drawCircle(obj);
     break;
   case DRAW_PEN:
     position *pos_pen = obj->pos;
@@ -193,27 +244,6 @@ void showObject(object *obj){
 
 
 /*------------------------------------------------------------
- * Procedure to draw a circle
- */
-void draw_circle()
-{
-  static GLUquadricObj *mycircle=NULL;
-  glColor3fv(curColor);
-  if(mycircle==NULL){
-    mycircle = gluNewQuadric();
-    gluQuadricDrawStyle(mycircle,(curFill == 0)?GL_LINE:GL_FILL);
-  }
-  glPushMatrix();
-  glTranslatef(pos_x, pos_y, 0.0);
-  gluDisk(mycircle,
-    0.0,           /* inner radius=0.0 */
-	  10.0,          /* outer radius=10.0 */
-	  16,            /* 16-side polygon */
-	  3);
-  glPopMatrix();
-}
-
-/*------------------------------------------------------------
  * Callback function for display, redisplay, expose events
  * clear the window
  */
@@ -222,13 +252,33 @@ void display_func(void)
   /* define window background color */
   glClearColor (0.2, 0.2, 0.2, 0.0);
   glClear(GL_COLOR_BUFFER_BIT);
-  object *temp = first_objects;
+  /* in order to show line or circle drawing in real-time */
+  if(exist_one==1){
+    switch (curMode){
+    case DRAW_LINE:
+      glBegin(GL_LINES);
+        glVertex3f(pos_x, pos_y, 0.0);
+        glVertex3f(pos_x_end, pos_y_end, 0.0);
+      glEnd();
+      break;
+    case DRAW_CIRCLE:
+      glPushMatrix();
+      glTranslatef(mid_x, mid_y, 0.0);
+      gluDisk(cur_objects->special_type, (curFill)?0.0:(radius - curSize),
+       radius, 16, 3);
+      glPopMatrix();
+      break;
+    default:
+      break;
+    }
+  }
   /* show all objects */
+  object *temp = first_objects;
   while(temp){
     showObject(temp);
     temp = temp->next;
   }
-  glFlush();
+  glFinish();
 }
 
 /*-------------------------------------------------------------
@@ -271,43 +321,40 @@ void keyboard_func(unsigned char key, int x, int y)
  */
 void mouse_func(int button, int state, int x, int y)
 {
-  if(button!=GLUT_LEFT_BUTTON||state!=GLUT_DOWN){
+  if(button!=GLUT_LEFT_BUTTON){
     return;
   }
   switch (curMode){
   case POLYGON_START:
+    if(state!=GLUT_DOWN) return; // only when mouse press down
     if(!exist_one){    // if the object not yet have one position
       newObject(POLYGON_START, curSize, curFill, SHOW, curColor);
       exist_one = 1;
     }
     addPosToObject(cur_objects, x, winHeight - y);
     break;
-  case INPUT_STRING:
-    pos_x = x;  
-    pos_y = winHeight - y;
-    break;
   case DRAW_LINE:
-    if(exist_one==0){
+    if(state==GLUT_DOWN){
       exist_one = 1;
-      pos_x = x;
-      pos_y = winHeight - y;
-	    glPointSize(curSize);
-      glBegin(GL_POINTS);   /*  Draw the 1st point */
-	      glVertex2f(x, winHeight-y);
-      glEnd();
-    }else{
-      exist_one=0;
-      glLineWidth(curSize);     /* Define line width */
-      glBegin(GL_LINES);    /* Draw the line */
-        glVertex2f(pos_x, pos_y);
-	      glVertex2f(x, winHeight - y);
-      glEnd();
+      pos_x=x; pos_y=winHeight-y;
+      newObject(DRAW_LINE, curSize, curFill, SHOW, curColor);
+      addPosToObject(cur_objects, x, pos_y);
+    }else if(state==GLUT_UP){
+      exist_one = 0;
+      addPosToObject(cur_objects, x, winHeight-y);
     }
     break;
   case DRAW_CIRCLE:
-    pos_x = x; 
-    pos_y = winHeight - y;
-    draw_circle();
+    if(state==GLUT_DOWN){
+      exist_one = 1;
+      pos_x=x; pos_y=winHeight-y;
+      newObject(DRAW_CIRCLE, curSize, curFill, SHOW, curColor);
+      specialTypeInit(cur_objects);
+      addPosToObject(cur_objects, pos_x, pos_y);
+    }else if(state==GLUT_UP){
+      exist_one = 0;
+      addPosToObject(cur_objects, x, winHeight-y);
+    }
     break;
   case DRAW_RECTANGLE:
     if(exist_one==0){
@@ -333,6 +380,10 @@ void mouse_func(int button, int state, int x, int y)
       glEnd();
     }
     break;
+  case INPUT_STRING:
+    pos_x = x;  
+    pos_y = winHeight - y;
+    break;
   default:
     break;
   }
@@ -345,19 +396,30 @@ void mouse_func(int button, int state, int x, int y)
 void motion_func(int  x, int y)
 {
   switch (curMode){
+  case DRAW_LINE:
+    pos_x_end=x; pos_y_end=winHeight - y;
+    /* use display callback to show line in real-time */
+    glutPostRedisplay();
+    break;
+  case DRAW_CIRCLE:
+    pos_x_end=x; pos_y_end=winHeight - y;
+    mid_x = 0.5*(pos_x+pos_x_end);
+    mid_y = 0.5*(pos_y+pos_y_end);
+    radius = 0.5*sqrt(pow(pos_x-pos_x_end, 2)+pow(pos_y-pos_y_end, 2));
+    /* use display callback to show line in real-time */
+    glutPostRedisplay();
+    break;
   case DRAW_PEN:
-    if(!exist_one){    // if the object not yet have one position
+    if(exist_one){    // if the object not yet have one position
+      pos_x = x; pos_y = winHeight - y;
+    }else{
       newObject(DRAW_PEN, curSize, curFill, SHOW, curColor);
       exist_one = 1;
       pos_x = x; pos_y = winHeight - y;
-    }else{
-      glBegin(GL_LINES);
-        glVertex3f(pos_x, pos_y, 0.0);
-        glVertex3f(x, winHeight - y, 0.0);
-      glEnd();
-      pos_x = x; pos_y = winHeight - y;
     }
     addPosToObject(cur_objects, pos_x, pos_y); // store current position
+    /* use display callback to show in real-time */
+    glutPostRedisplay();
     break;
   default:
     break;
@@ -382,6 +444,10 @@ void top_menu_func(int value)
   case MENU_EXIT:
     deleteAllObjects();
     exit(0);
+    break;
+  case MENU_CLEAN:
+    deleteAllObjects();
+    glutPostRedisplay();
     break;
   /* we can click anywhere and nothing would happen */
   case INPUT_CURSOR:
@@ -411,7 +477,7 @@ void  polygon_func(int value)
   case POLYGON_FINISH:
     fprintf(stderr,"Finish drawing polygon.\n");
     cur_objects->this_type = POLYGON_FINISH;
-    showObject(cur_objects);
+    glutPostRedisplay();   /*---Trigger Display event for redisplay window*/
     break;
   default:
     break;
@@ -425,11 +491,8 @@ void  draw_func(int value)
    */
   stateInit();
   switch(value){
-  case DRAW_PEN:
-    fprintf(stderr,"Start using pen.\n");
-    curMode = DRAW_PEN;
-    break;
   case DRAW_LINE:
+    fprintf(stderr,"Start drawing lines.\n");
     curMode = DRAW_LINE;
     break;
   case DRAW_CIRCLE:
@@ -437,6 +500,10 @@ void  draw_func(int value)
     break;
   case DRAW_RECTANGLE:
     curMode = DRAW_RECTANGLE;
+    break;
+  case DRAW_PEN:
+    fprintf(stderr,"Start using pen.\n");
+    curMode = DRAW_PEN;
     break;
   default:
     break;
@@ -519,7 +586,7 @@ int main(int argc, char **argv)
 
   draw_m = glutCreateMenu(draw_func); /* Create draw-menu */
   glutAddSubMenu("Polygon", polygon_m);
-  glutAddMenuEntry("Pen", DRAW_PEN);
+  //glutAddMenuEntry("Pen", DRAW_PEN);
   glutAddMenuEntry("Line", DRAW_LINE);
   glutAddMenuEntry("Circle", DRAW_CIRCLE);
   glutAddMenuEntry("Rectangle", DRAW_RECTANGLE);
@@ -546,6 +613,7 @@ int main(int argc, char **argv)
   glutAddSubMenu("Size ", size_m);
   glutAddSubMenu("Color ", color_m);
   glutAddSubMenu("Fill ", fill_m);
+  glutAddMenuEntry("Clean", MENU_CLEAN);
   glutAddMenuEntry("Exit", MENU_EXIT);
   glutAttachMenu(GLUT_RIGHT_BUTTON);
 
