@@ -50,8 +50,7 @@ find_package(OpenGL REQUIRED)
 find_package(GLUT REQUIRED)
 
 set(Examples
-    "PG13"
-    "mouse_key"
+    "drawing_panel"
 )
 
 foreach(ex IN LISTS Examples)
