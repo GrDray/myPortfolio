@@ -24,6 +24,10 @@
 #define    COLOR_RED  2
 #define    COLOR_GREEN  3
 #define    COLOR_BLUE  4
+#define    COLOR_WHITE  5
+#define    COLOR_YELLOW  6
+#define    COLOR_CYAN  7
+#define    COLOR_PURPLE  8
 #define    MAX_STRING_LEN  50
 #define    SHOW  1
 #define    NO_SHOW  0
@@ -85,6 +89,12 @@ object *cur_objects=NULL; // store the current (latest) object
 /* create new object and set cur_object point to new location */
 void newObject(int type, float size, int fill, int show, float *color) {
   object *newObject = (object *)malloc(sizeof(object));
+  if(!newObject){
+    fprintf(stderr, "newObject() failed\n");
+    return;
+  }else{
+    fprintf(stderr, "newObject() successed\n");
+  }
   newObject->special_type = NULL;
   newObject->this_type = type;
   newObject->this_size = size;
@@ -117,6 +127,7 @@ void deleteObject(object *obj){
 
 /* delete all objects and release memory */
 void deleteAllObjects() {
+  fprintf(stderr, "deleteAllObjects() successed\n");
   while (first_objects != NULL) {
     position *pos = first_objects->pos;
     while (pos != NULL) {
@@ -196,14 +207,15 @@ void showObject(object *obj){
   /* check if we show it*/
   if(!obj->if_show) return;
   /* apply openGL states */
-  glPointSize(obj->this_size);
   glColor3fv(obj->this_color);
+  glPointSize(obj->this_size);
   /* show objects depend on its type */
   switch (obj->this_type){
   case POLYGON_FINISH:
     position *pos_poly = obj->pos;
     /*set if fill the polygon*/
     glPolygonMode(GL_FRONT_AND_BACK, (obj->if_fill)?GL_FILL:GL_LINE);
+    glLineWidth(obj->this_size);
     glBegin(GL_POLYGON);
       while(pos_poly){
         glVertex2i(pos_poly->x, pos_poly->y);
@@ -214,7 +226,6 @@ void showObject(object *obj){
   case DRAW_CIRCLE:
     position *pos_circle = obj->pos;
     if(!pos_circle || !pos_circle->next) return;
-    glLineWidth(obj->this_size);
     drawCircle(obj);
     break;
   case INPUT_STRING:
@@ -222,7 +233,7 @@ void showObject(object *obj){
     int pos_str_y = obj->bound[1].y;
     for(int i=0; i<obj->if_fill; i++){
       glRasterPos2i(pos_str_x, pos_str_y);
-      glutBitmapCharacter(GLUT_BITMAP_8_BY_13, (int) obj->string[i]);
+      glutBitmapCharacter(GLUT_BITMAP_9_BY_15, (int) obj->string[i]);
       pos_str_x += 10;
     }
     break;
@@ -268,6 +279,7 @@ void display_func(void)
   glClear(GL_COLOR_BUFFER_BIT);
   /* in order to show line or circle drawing in real-time */
   if(exist_one==1){
+    glColor3fv(curColor);
     switch (curMode){
     case DRAW_LINE:
       glBegin(GL_LINES);
@@ -328,19 +340,25 @@ void keyboard_func(unsigned char key, int x, int y)
       cur_objects->if_fill = 0;
     }
     int str_len = cur_objects->if_fill;
-    if(str_len<MAX_STRING_LEN-1){
+    if(key==8){
+      if(str_len) {
+        cur_objects->if_fill -= 1;
+        fprintf(stderr, "Backspace for word cancellation.\n");
+      }
+    }else if(str_len<MAX_STRING_LEN-1){
       cur_objects->string[str_len] = key;
       cur_objects->if_fill += 1;
     }else{
       fprintf(stderr, "over the length limit.\n");
     }
     break;
-  default:
-    break;
-  }
-  if(key=='Q'||key=='q') {
+  case DO_NOTHING:
+    if(key=='Q'||key=='q') {
     deleteAllObjects();
     exit(0);
+  }
+  default:
+    break;
   }
   glutPostRedisplay();
   glFinish();
@@ -432,14 +450,12 @@ void motion_func(int  x, int y)
   switch (curMode){
   case DRAW_LINE:
     pos_x_end=x; pos_y_end=winHeight - y;
-    /* use display callback to show line in real-time */
     break;
   case DRAW_CIRCLE:
     pos_x_end=x; pos_y_end=winHeight - y;
     mid_x = 0.5*(pos_x+pos_x_end);
     mid_y = 0.5*(pos_y+pos_y_end);
     radius = 0.5*sqrt(pow(pos_x-pos_x_end, 2)+pow(pos_y-pos_y_end, 2));
-    /* use display callback to show line in real-time */
     break;
   case DRAW_PEN:
     if(exist_one){    // if the object not yet have one position
@@ -450,11 +466,11 @@ void motion_func(int  x, int y)
       pos_x = x; pos_y = winHeight - y;
     }
     addPosToObject(cur_objects, pos_x, pos_y); // store current position
-    /* use display callback to show in real-time */
     break;
   default:
     break;
   }
+  /* use display callback to show line in real-time */
   glutPostRedisplay();
   glFinish();
 }
@@ -567,6 +583,9 @@ void  size_func(int value)
 void  color_func(int value)
 {
   switch (value){
+  case COLOR_WHITE:
+    curColor[0] = curColor[1] = curColor[2] = 1.0;
+    break;
   case COLOR_RED:
     curColor[0] = 1.0;
     curColor[1] = curColor[2] = 0.0;
@@ -578,6 +597,18 @@ void  color_func(int value)
   case COLOR_BLUE:
     curColor[2] = 1.0;
     curColor[1] = curColor[0] = 0.0;
+    break;
+  case COLOR_YELLOW:
+    curColor[2] = 0.0;
+    curColor[0] = curColor[1] = 1.0;
+    break;
+  case COLOR_CYAN:
+    curColor[0] = 0.0;
+    curColor[1] = curColor[2] = 1.0;
+    break;
+  case COLOR_PURPLE:
+    curColor[1] = 0.0;
+    curColor[0] = curColor[2] = 0.5;
     break;
   default:
     break;
@@ -630,9 +661,13 @@ int main(int argc, char **argv)
   glutAddMenuEntry("x6", 6);
 
   color_m = glutCreateMenu(color_func); /* Create size-menu */
+  glutAddMenuEntry("White", COLOR_WHITE);
   glutAddMenuEntry("Red", COLOR_RED);
   glutAddMenuEntry("Green", COLOR_GREEN);
   glutAddMenuEntry("Blue", COLOR_BLUE);
+  glutAddMenuEntry("Yellow", COLOR_YELLOW);
+  glutAddMenuEntry("Cyan", COLOR_CYAN);
+  glutAddMenuEntry("Purple", COLOR_PURPLE);
 
   fill_m = glutCreateMenu(fill_func); /* Create fill-menu */
   glutAddMenuEntry("Fill", COLOR_FILL);
@@ -654,6 +689,7 @@ int main(int argc, char **argv)
 }
 
 
-/* menu目前有屬性 可加入exit  save or read 加入grid-line
-         檢查所有stateInit的地方
+/*加入grid-line
+  加入point 功能
+  idle event or timer
  */
