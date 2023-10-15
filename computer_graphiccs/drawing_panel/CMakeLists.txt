@@ -53,8 +53,8 @@ find_package(imgui REQUIRED)
 
 
 set(myFiles
-    "test"
-#    "drawing_panel"
+    "imguiExample"
+    "drawing_panel"
 )
 
 foreach(ex IN LISTS myFiles)

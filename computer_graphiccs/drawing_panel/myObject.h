@@ -1,3 +1,7 @@
+/* define all object that use in drawing_panel
+ *   and relative functions.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -181,6 +185,7 @@ void showObject(object *obj){
   /* show objects depend on its type */
   switch (obj->this_type){
   case POLYGON_FINISH:
+    {
     position *pos_poly = obj->pos;
     /*set if fill the polygon*/
     glPolygonMode(GL_FRONT_AND_BACK, (obj->if_fill)?GL_FILL:GL_LINE);
@@ -192,12 +197,16 @@ void showObject(object *obj){
       }
     glEnd();
     break;
+    }
   case DRAW_CIRCLE:
+    {
     position *pos_circle = obj->pos;
     if(!pos_circle || !pos_circle->next) return;
     drawCircle(obj);
     break;
+    }
   case DRAW_LINE:
+    {
     position *pos_line = obj->pos;
     if(!pos_line || !pos_line->next) return;
     position *pos_line_next = pos_line->next;
@@ -207,7 +216,9 @@ void showObject(object *obj){
       glVertex3f(pos_line_next->x, pos_line_next->y, 0.0);
     glEnd();
     break;
+    }
   case INPUT_STRING:
+    {
     int pos_str_x = obj->bound[1].x;
     int pos_str_y = obj->bound[1].y;
     for(int i=0; i<obj->if_fill; i++){
@@ -216,13 +227,16 @@ void showObject(object *obj){
       pos_str_x += 10;
     }
     break;
+    }
   case DRAW_POINT:
+    {
     if(!obj->pos) return;
     glPointSize(obj->this_size);
     glBegin(GL_POINTS);     /*  Draw a point */
       glVertex2f(obj->pos->x, obj->pos->y);
     glEnd();
     break;
+    }
   default:
     break;
   }
