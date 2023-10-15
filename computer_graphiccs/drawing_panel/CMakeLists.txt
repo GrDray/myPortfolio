@@ -53,7 +53,7 @@ find_package(imgui REQUIRED)
 
 
 set(myFiles
-    "partial_test"
+    "test"
 #    "drawing_panel"
 )
 
