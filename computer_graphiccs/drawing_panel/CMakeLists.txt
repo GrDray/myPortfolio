@@ -7,6 +7,7 @@ project("1101 CG Sample Code"
 )
 
 set(CMAKE_C_STANDARD 99)
+set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
@@ -48,17 +49,20 @@ message(STATUS "C Release Flags: ${CMAKE_C_FLAGS_RELEASE}")
 # Find external libraries
 find_package(OpenGL REQUIRED)
 find_package(GLUT REQUIRED)
+find_package(imgui REQUIRED)
 
-set(Examples
-    "drawing_panel"
+
+set(myFiles
+    "partial_test"
+#    "drawing_panel"
 )
 
-foreach(ex IN LISTS Examples)
+foreach(ex IN LISTS myFiles)
     message(STATUS "Configuring ${ex}...")
-
     add_executable(${ex})
-    target_sources(${ex} PRIVATE "${ex}.c")
+    target_sources(${ex} PRIVATE "${ex}.cpp")
     target_link_libraries(${ex} PRIVATE GLUT::GLUT)
+    target_link_libraries(${ex} PRIVATE imgui::imgui)
 
     if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
         target_link_libraries(${ex} PRIVATE
