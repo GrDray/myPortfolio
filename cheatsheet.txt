@@ -1,0 +1,7 @@
+cmake -B .\cmake_build_debug -S . -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=C:/dev/vcpkg/scripts/buildsystems/vcpkg.cmake
+
+cmake --build .\cmake_build_debug
+
+cmake -B .\cmake_build_release -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=C:/dev/vcpkg/scripts/buildsystems/vcpkg.cmake
+
+cmake --build .\cmake_build_release
