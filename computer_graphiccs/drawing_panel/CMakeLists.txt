@@ -60,7 +60,7 @@ set(myFiles
 foreach(ex IN LISTS myFiles)
     message(STATUS "Configuring ${ex}...")
     add_executable(${ex})
-    target_sources(${ex} PRIVATE "${ex}.cpp")
+    target_sources(${ex} PRIVATE "${ex}.c")
     target_link_libraries(${ex} PRIVATE GLUT::GLUT)
     target_link_libraries(${ex} PRIVATE imgui::imgui)
 
