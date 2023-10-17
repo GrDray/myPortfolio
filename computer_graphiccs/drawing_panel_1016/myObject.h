@@ -161,7 +161,7 @@ class MyObject {
       gluDisk(obj->special_type,
         (obj->if_fill)?0.0:(radius - obj->this_size),   /* inner radius */
         radius,    /* outer radius */
-        25,            /* 25-side polygon */
+        36,            /* 36-side polygon */
         3);
       glPopMatrix();
     }
