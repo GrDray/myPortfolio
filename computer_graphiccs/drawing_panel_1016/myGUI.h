@@ -249,7 +249,7 @@ void My_DisplayFunc(void)
   MyGUI::Render();
   glViewport(0, 0, (GLsizei)io.DisplaySize.x, (GLsizei)io.DisplaySize.y);
   glClearColor (0.2, 0.2, 0.2, 0.0);
-  glClear(GL_COLOR_BUFFER_BIT);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   //glUseProgram(0); // You may want this if using this code in an OpenGL 3+ context where shaders may be bound, but prefer using the GL3+ code.
 
   if(MyState::exist_one==1){
