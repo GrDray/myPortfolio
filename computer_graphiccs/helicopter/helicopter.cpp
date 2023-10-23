@@ -50,8 +50,13 @@ void display()
   /*----Define the current eye position and the eye-coordinate system---*/
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();           /* Initialize modelview matrix */
-  gluLookAt( 0.0, 10, 30.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
+  gluLookAt( 0.0, 5, 30.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
 
+  /* enter the main body coord. origin. 
+   * and draw the helicopter.
+   */
+  glTranslatef(0.0, 3.0, 10.0);
+  glRotatef(30.0, 0.0, 1.0, 0.0);
   MyHeli::drawHeli();
 
   /*-------Swap the back buffer to the front --------*/
