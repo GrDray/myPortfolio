@@ -105,11 +105,9 @@ void MyHeli::draw_main_body(){
 
   glColor3f(0.0f, 0.4f, 0.0f);
   glPushMatrix();
-  glScalef(8.0, 5.0, 5.0);
+  glScalef(8.0, 4.5, 6.0);
   gluSphere(sphere, 0.5, 24, 24);
   glPopMatrix();
-
-
 }
 
 void MyHeli::draw_landing_arm(){
@@ -124,7 +122,7 @@ void MyHeli::draw_landing_arm(){
    * shift and rotate the axes to draw the arms
    * and return to main body coord.
    */
-  glColor3f(0.0f, 0.4f, 0.0f);
+  glColor3f(0.8f, 0.8f, 0.8f);
   glPushMatrix(); // draw the front-left arm
   glTranslatef(-1.5, -1.5, 1.5);
   glRotatef(90.0, 1.0, 0.0, 0.0);
@@ -152,7 +150,7 @@ void MyHeli::draw_landing_skid(){
    * Scale up and shift the axes to draw the landing skid
    * and return to main body coord.
    */
-  glColor3f(1.0, 1.0, 1.0);
+  glColor3f(1.0, 0.7, 0.1);
   glPushMatrix();  // draw the left landing skid
   glTranslatef(0.0, -2.75, 1.5);
   glScalef(8.0, 0.5, 1.0);
@@ -184,7 +182,7 @@ void MyHeli::draw_main_blade(){
    */
   glColor3f(0.1, 0.1, 0.8);
   glPushMatrix();
-  glRotatef(-90.0, 1.0, 0.0, 0.0);
+  glRotatef(90.0, 1.0, 0.0, 0.0);
   draw_blade();  // draw the main blades 1st
   glRotatef(120.0, 0.0, 0.0, 1.0);
   draw_blade();  // draw the main blades 2nd
@@ -194,7 +192,7 @@ void MyHeli::draw_main_blade(){
 
 
   /* draw the arm connecting main blades joint and main body */
-  glColor3f(0.0, 0.4, 0.0);
+  glColor3f(0.8, 0.8, 0.8);
   glPushMatrix();
   glRotatef(90.0, 1.0, 0.0, 0.0);
   gluCylinder(cylind, 0.3, 0.3, 2.0, 12, 3);
@@ -203,7 +201,7 @@ void MyHeli::draw_main_blade(){
 
 void MyHeli::draw_tail_boom(){
   /* scale axes to draw the tail boom */
-  glColor3f(0.0, 0.4, 0.0);
+  glColor3f(0.7, 0.7, 0.7);
   glPushMatrix();
   glScalef(8.0, 1.0, 0.5);
   draw_cube();
@@ -212,7 +210,7 @@ void MyHeli::draw_tail_boom(){
 
 void MyHeli::draw_rudder(){
   /* scale axes to draw the Rudder */
-  glColor3f(1.0, 1.0, 1.0);
+  glColor3f(0.0, 0.4, 0.0);
   glPushMatrix();
   glScalef(1.0, 3.0, 0.5);
   draw_cube();
@@ -248,7 +246,7 @@ void MyHeli::draw_tail_blade(){
   glPopMatrix(); 
   
   /* draw the arm connecting joint and Rudder */
-  glColor3f(0.0, 0.4, 0.0);
+  glColor3f(0.7, 0.7, 0.7);
   glPushMatrix();
   glRotatef(180.0, 1.0, 0.0, 0.0);
   gluCylinder(cylind, 0.3, 0.3, 2.5, 12, 3);

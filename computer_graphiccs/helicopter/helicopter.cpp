@@ -50,7 +50,8 @@ void display()
   /*----Define the current eye position and the eye-coordinate system---*/
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();           /* Initialize modelview matrix */
-  gluLookAt( 0.0, 5, 30.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
+  //gluLookAt( 0.0, 10, 10.0, 0.0, 0.0, 8.0, 0.0, 1.0, 0.0); // upper view
+  gluLookAt( 0.0, 2.5, 30.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0); // normal view
 
   /* enter the main body coord. origin. 
    * and draw the helicopter.
@@ -79,12 +80,14 @@ void my_reshape(int w, int h)
 
   glMatrixMode(GL_PROJECTION);
   glLoadIdentity();
+  
   if(w>h)
     glOrtho(-15.0, 15.0, -15.0*(float)h/(float)w, 15.0*(float)h/(float)w, 
             -10.5, 30.0);
   else
     glOrtho(-15.0*(float)w/(float)h, 15.0*(float)w/(float)h, -15.0, 15.0, 
             -10.5, 30.0);
+
 }
 
 
