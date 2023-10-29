@@ -1,9 +1,10 @@
 /*******************************************************************************
- * This file contains the main procedure of this example program. The main procedure performs
+ * This file contains the main procedure of Newton's interpolation. The main procedure performs
  * the following computation:
  * 1. generating the sample points,
- * 2. computing the x- and y-coordinates of NUM_INTER_PNTS interpolation points,
- * 3. displaying the results.
+ * 2. computing the divided differences
+ * 3. computing the results.
+ * 4. computing the errors.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,18 +22,13 @@
 //Sample points' space. A large chunk of memory
 double  px[N+1], py[N+1], pt[N+1];  // equal to sample data
 double  qx[N+1], qy[N+1], qt[N+1];  // value of interpolation
-double  c[N+1];  // to store the coef of Newton.
+double  c[N+1];  // to store the coef of Newton from divided differences.
 
 /************************************************************
- * Procedure to generate N sample points uniformly distributed in a circle.
- * The circel is entered at (0, 0)
  * Input:
- *    N: number of samples,
- *    r: radius of the circel.
- * Output:
- *    *t: array of parametric values (angles in radiens),
- *    *x, *y: arrays of x- & y-coordinates.
- *  Called by main() in main.c.
+ *    n_sample: number of samples,
+ *    t: array to store angles.
+ *    x,y: the array to store the sample data.
  */
 void  gen_ellipse_pnts(double *t, double  *x, double *y, int n_sample)
 {
@@ -67,18 +63,16 @@ double Newton_interpolate(double t, double *sampleX, int n_sample)
 void comp_Newton_coef(double *sampleX, double *sampleY, int n_sample)
 {
 	int     i, j;
-
+	
 	//initialize the coef's.
 	for(i=0;i<=n_sample;i++) c[i] = sampleY[i];
-
+	
 	//Recursively compute the coefficients.
 	for(i=1;i<=n_sample;i++){
 		for(j=n_sample;j>=i;j--)  // Modify c_j = (c_j-c_i)/(xj-xi)
 			c[j] = (c[j]-c[j-1])/(sampleX[j]-sampleX[j-i]);
 	}
-/*    for(i=0;i<=n_sample;i++)
-		fprintf(stderr," c%d = %lf\n", i, c[i]);
-*/
+
 }
 
 double distance_2_norm(double *px, double *py, double *qx, double *qy){
@@ -102,21 +96,16 @@ double distance_8_norm(double *px, double *py, double *qx, double *qy){
 
 
 int main(){
-  gen_ellipse_pnts(pt, px, py, N); // for problem II.A
-/*
-  for (int i = N; i >=0; i--)
-  {
-    fprintf(stderr, " %lf \t %lf \n", px[i], py[i]);
-  }
-*/  
+  gen_ellipse_pnts(pt, px, py, N); // generate the sapmle data.
+
   comp_Newton_coef(px, py, N);
   for(int i=0;i<=N;i++){
     qx[i] = px[i];
-    qy[i] = Newton_interpolate(qx[i], px, N);  // for problem II.B
+    qy[i] = Newton_interpolate(qx[i], px, N);  // interpolation
   }
 
 
-
+  /* print all results */
   fprintf(stderr, "    px\t\t  py\t\t  qy \n");
   fprintf(stderr, "---------------------------------------\n");
   for (int i = 0; i <= N; i++)
