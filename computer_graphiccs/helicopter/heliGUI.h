@@ -136,13 +136,14 @@ class HeliGUI {
       {
         ImGuiIO& io = ImGui::GetIO();
         static float slider_altitude = 5.0;
-        static bool forwarding = false;
 
         ImGui::Begin("Properties");                          // Create a window called "Hello, world!" and append into it.
         /*
         ImGui::Text("Setup Size, color and fill mode for your object.");               // Display some text (you can use a format strings too)
         ImGui::Checkbox("Fill", &checkbox_fill);      // Edit bools storing our window open/close state
         */
+        if (ImGui::Button("Reset"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
+          Heli::reset();
         if (ImGui::Button("Take-off"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
           Heli::takeOff();
         if (ImGui::Button("Landing"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
@@ -151,17 +152,13 @@ class HeliGUI {
         if(slider_altitude>5.0){
             Heli::upAndDown(slider_altitude);
         }
-        if(forwarding) {
-          if (ImGui::Button("Stop")){
-            Heli::stopFlyForward();
-            forwarding = false;
-          }
-        }else{
-          if (ImGui::Button("Fly forward")){
-            Heli::flyForward();
-            forwarding = true;
-          }
+        /* control rotating */
+        
+        if (ImGui::Button("Rotate")){
+          Heli::rotate();
         }
+        
+
         //ImGui::SameLine();
         //ImGui::Text("counter = %d", counter);
         
@@ -218,8 +215,9 @@ void My_DisplayFunc(void)
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();           /* Initialize modelview matrix */
   //gluLookAt( 0.0, 10, 10.0, 0.0, 0.0, 8.0, 0.0, 1.0, 0.0); // upper view
-  gluLookAt( 0.0, 5, 35.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0); // normal view
+  gluLookAt( 0.0, 20, 50.0, 0.0, 5.0, 0.0, 0.0, 1.0, 0.0); // normal view
 
+  Heli::drawBuilding();
   Heli::moveOptions();
   Heli::drawHeli();
 
@@ -250,7 +248,7 @@ std::cerr << "reshape called\n" << std::endl;
 //            -10.5, 30.0);
 
     glOrtho(-30.0, 30.0, -30.0*(float)h/(float)w, 30.0*(float)h/(float)w, 
-            -20, 50.0);
+            -80, 80.0);
   else
     glOrtho(-15.0*(float)w/(float)h, 15.0*(float)w/(float)h, -15.0, 15.0, 
             -10.5, 30.0);
@@ -337,11 +335,29 @@ void My_KeyboardUpFunc(unsigned char c, int x, int y)
 
 void My_SpecialFunc(int key, int x, int y)
 {
-    //printf("key_down_func %d\n", key);
-    ImGuiKey imgui_key = ImGui_ImplGLUT_KeyToImGuiKey(key + 256);
-    ImGui_ImplGLUT_AddKeyEvent(imgui_key, true, key + 256);
-    ImGui_ImplGLUT_UpdateKeyModifiers();
-    (void)x; (void)y; // Unused
+  switch (key) {
+    case GLUT_KEY_UP:
+      Heli::flyForward();
+      break;
+    case GLUT_KEY_DOWN:
+      Heli::hover();
+      break;
+    case GLUT_KEY_LEFT:
+      Heli::flyLeft();
+      break;
+    case GLUT_KEY_RIGHT:
+      Heli::flyRight();
+      break;
+    default:
+     break;
+    }
+
+  ImGuiKey imgui_key = ImGui_ImplGLUT_KeyToImGuiKey(key + 256);
+  ImGui_ImplGLUT_AddKeyEvent(imgui_key, true, key + 256);
+  ImGui_ImplGLUT_UpdateKeyModifiers();
+  (void)x; (void)y; // Unused
+
+  
 }
 
 void My_SpecialUpFunc(int key, int x, int y)

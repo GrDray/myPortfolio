@@ -12,18 +12,23 @@
 
 #define LANDING 0
 #define HOVER 1
-#define FORWARD 4
-#define TURN 5
+#define FORWARD 2
+#define TURN_LEFT 4
+#define TURN_RIGHT 5
 #define ROTATE 6
 
-float tempX, tempY, tempZ;
+float tempX=0.0, tempY=3.0, tempZ;
 
 class Heli
 {
 private:
   static float x_pos, y_pos, z_pos;
+  static float direction;
   static float blade_angle;
+  static float rotation_angle;
   static int state;
+  static bool isRotating;
+  static int turn;
   /*-----Define a unit box--------*/
   /* Vertices of the box */
   static float  points[8][3];
@@ -57,16 +62,27 @@ private:
 public:
   static void moveOptions();
   static void drawHeli();
+  static void drawBuilding();
   static void takeOff();
   static void landing();
   static void upAndDown(float altitude);
   static void flyForward();
-  static void stopFlyForward();
+  static void hover();
+  static void flyLeft();
+  static void flyRight();
+  static void rotate();
+  static void directionPlusFive();
+  static void directionMinusFive();
   static void bladeAnglePlusFive();
+  static void reset();
 };
 
 float Heli::blade_angle = 0.0;
+float Heli::rotation_angle = 0.0;
+float Heli::direction = -90.0;
 int Heli::state = LANDING ;
+bool Heli::isRotating = false;
+int Heli::turn = HOVER ;
 float Heli::x_pos = 0.0;
 float Heli::y_pos = 3.0;
 
@@ -342,8 +358,45 @@ void Heli::flyForward(){
   state = FORWARD;
 }
 
-void Heli::stopFlyForward(){
+void Heli::hover(){
   state = HOVER;
+  turn = HOVER;
+}
+
+void Heli::flyLeft(){
+  turn = TURN_LEFT;
+}
+
+void Heli::flyRight(){
+  turn = TURN_RIGHT;
+}
+
+void Heli::rotate(){
+  isRotating = true;
+}
+
+void Heli::directionPlusFive(){
+  direction += 0.05;
+  if(direction>360.0){
+    direction -= 360.0;
+  }
+}
+
+void Heli::directionMinusFive(){
+  direction -= 0.05;
+  if(direction<-360.0){
+    direction += 360.0;
+  }
+}
+
+void Heli::reset(){
+  direction = -90.0;
+  x_pos = 0.0;
+  y_pos = 3.0;
+  state = LANDING;
+  tempX=0.0; 
+  tempY=3.0;
+  turn = HOVER ;
 }
 
 void Heli::bladeAnglePlusFive(){
@@ -353,12 +406,47 @@ void Heli::bladeAnglePlusFive(){
   }
 }
 
+void Heli::drawBuilding(){
+  if(cylind==NULL){
+    cylind = gluNewQuadric();
+    gluQuadricDrawStyle(cylind, GLU_FILL);
+    gluQuadricNormals(cylind, GLU_SMOOTH);
+  }
+  glPushMatrix(); 
+  glColor4f(0.0, 0.6, 1.0, 0.5);
+  glRotatef(-90.0, 1.0, 0.0, 0.0);
+  gluCylinder(cylind, 2.0, 2.0, 15.0, 12, 3);        
+  glPopMatrix();
+}
+
+
 void Heli::moveOptions(){
-  glRotatef(-90.0, 0.0, 1.0, 0.0);
-  if(state==FORWARD) x_pos -= 0.01;
+  glRotatef(direction, 0.0, 1.0, 0.0);
+  glTranslatef(x_pos, y_pos, 10.0);
+
+  /*this is for rotation*/
+  glRotatef(rotation_angle, 0.0, 1.0, 0.0);
+
+  /* to make the heli move forward*/
+  if(state==FORWARD){
+    x_pos -= 0.01;
+    glRotatef(20.0, 0.0, 0.0, 1.0);
+  } 
+  if(turn == TURN_LEFT){
+    directionPlusFive();
+  }else if(turn == TURN_RIGHT){
+    directionMinusFive();
+  }
+  if(isRotating){
+    rotation_angle +=0.1;
+    if(rotation_angle>360.0) {
+      rotation_angle = 0;
+      isRotating = false;
+    }
+  }
+  
+  /*to check the current height */
   if(y_pos<tempY) y_pos += 0.01;
   if(y_pos>tempY) y_pos -= 0.01;
-  glTranslatef(x_pos, y_pos, 10.0);
-  
 
 }
