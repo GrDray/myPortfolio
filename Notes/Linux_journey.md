@@ -14,6 +14,6 @@
    sort, tr, uniq, wc, nl, grep
 
 3. Advanced Text Manipulation:
-   
+   Vim, Emacs
    
    
